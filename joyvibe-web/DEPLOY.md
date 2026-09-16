@@ -37,8 +37,35 @@
 - 发现新版本：底部弹出提示条，显示发布时间，用户点"立即刷新"；支付页不提示，避免打断。
 - 购物车/登录/心愿单均在 localStorage，刷新不丢状态。
 
-## 免命令的全自动方案（可选，长期推荐）
+## GitHub 自动发布（已配置，推荐日常使用）
 
-在 Netlify 控制台把站点连接到 GitHub 仓库后，每次 `git push` 会由 Netlify
-自动按 `netlify.toml` 构建发布，无需本地运行任何命令；`version.json` 机制
-与同步校验脚本同样适用。当前方案无需 git 仓库即可工作。
+仓库 `wcs0810/joyvibe-shop` 已与 Netlify 站点打通，**push 即发布，无需本地命令**：
+
+1. 本地提交并推送到 `main`：
+   ```powershell
+   git add .
+   git commit -m "feat: 改动说明"
+   git push origin main
+   ```
+2. GitHub push Webhook 自动通知 Netlify Build Hook，触发云端构建：
+   - Base 目录：`joyvibe-web/`
+   - 构建命令：`npm run build`
+   - 发布目录：`dist/`，Functions 目录：`netlify/functions/`
+   - 构建规则以仓库内 `netlify.toml` 为准（重定向、缓存头、安全头均自动生效）。
+3. 构建成功后自动发布到 **https://joyvibe-shop.netlify.app**；
+   构建失败会在 Netlify 站点的 Deploys 页面标红，线上版本不受影响。
+4. 已打开网页的用户由 VersionCheck 机制（见上节）收到更新提示。
+
+配套设置（一次性，已完成，仅供排查时参考）：
+
+- Netlify 站点构建配置通过 Netlify API 绑定：`repo=wcs0810/joyvibe-shop`、`branch=main`、
+  `base=joyvibe-web`。
+- GitHub 仓库 Deploy Keys 中存放 Netlify 部署公钥（只读，名称 `netlify-joyvibe-shop`），
+  供 Netlify 构建机克隆代码。
+- GitHub 仓库 Webhooks 中注册了 push 事件，指向 Netlify Build Hook；
+  在仓库 Settings → Webhooks 可查看每次投递是否成功。
+- 如需手动让云端重新构建一次，可在 Netlify 控制台 Deploys → Trigger deploy，
+  或重新推送 main（空提交也可：`git commit --allow-empty -m "chore: rebuild" && git push`）。
+
+本地 CLI 部署（`npm run deploy` / `deploy:draft` / `deploy:watch`）仍然保留，
+用于紧急发布、预览链接和离线调试；与 GitHub 自动发布互不冲突。
