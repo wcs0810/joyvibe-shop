@@ -1,0 +1,68 @@
+name: Deploy to Netlify
+
+# push 到 main 后自动触发 Netlify 云端构建（构建规则以 joyvibe-web/netlify.toml 为准）
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+# 同一分支的连续推送共享一个部署队列，后一次不取消前一次（避免出现半成品线上版本）
+concurrency:
+  group: netlify-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger Netlify build
+        id: trigger
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          set -euo pipefail
+          resp=$(curl -sS --fail-with-body -X POST \
+            -H "Authorization: Bearer ${NETLIFY_AUTH_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "https://api.netlify.com/api/v1/sites/${NETLIFY_SITE_ID}/builds" \
+            -d '{}')
+          build_id=$(printf '%s' "$resp" | jq -r '.id // empty')
+          if [ -z "$build_id" ]; then
+            echo "::error::Failed to trigger Netlify build: $resp"
+            exit 1
+          fi
+          echo "build_id=${build_id}" >> "$GITHUB_OUTPUT"
+          echo "Netlify 构建已触发：https://app.netlify.com/sites/${NETLIFY_SITE_ID}/deploys/${build_id}"
+
+      - name: Wait for build to finish
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          BUILD_ID: ${{ steps.trigger.outputs.build_id }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 40); do
+            b=$(curl -sS --fail-with-body \
+              -H "Authorization: Bearer ${NETLIFY_AUTH_TOKEN}" \
+              "https://api.netlify.com/api/v1/sites/${NETLIFY_SITE_ID}/builds/${BUILD_ID}")
+            done_flag=$(printf '%s' "$b" | jq -r '.done')
+            state=$(printf '%s' "$b" | jq -r '.deploy_state // "unknown"')
+            echo "[$i] done=${done_flag} state=${state}"
+            if [ "$done_flag" = "true" ]; then
+              if [ "$state" = "ready" ]; then
+                deploy_id=$(printf '%s' "$b" | jq -r '.deploy_id')
+                echo "::notice::部署成功 https://joyvibe-shop.netlify.app (deploy ${deploy_id})"
+                exit 0
+              fi
+              printf '%s' "$b" | jq -r '.error // "unknown error"'
+              echo "::error::Netlify 部署失败，状态：${state}"
+              exit 1
+            fi
+            sleep 15
+          done
+          echo "::error::等待 Netlify 构建超时（10 分钟）"
+          exit 1
