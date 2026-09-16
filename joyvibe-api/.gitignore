@@ -1,0 +1,10 @@
+node_modules/
+npm-debug.log*
+
+# 运行期数据（内存持久化文件 / 稳定性探针产物），不入库
+data/
+
+# 环境变量
+.env
+.env.*
+!.env.example

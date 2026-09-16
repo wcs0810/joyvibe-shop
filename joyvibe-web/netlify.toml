@@ -1,0 +1,41 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[functions]
+  # Express backend 打包目录
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# /api/* 同域代理到 Netlify Function（前端无需跨域、无需配置后端域名）
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# SPA：所有前端路由都回退到 index.html，由 React Router 处理
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# 带哈希的静态资源长期缓存
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# 版本探测文件必须实时校验，确保客户端能立刻发现新版本
+[[headers]]
+  for = "/version.json"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+
+# 安全响应头
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"

@@ -1,0 +1,25 @@
+# 依赖（前后端）
+node_modules/
+
+# 构建产物
+joyvibe-web/dist/
+joyvibe-web/dist-ssr/
+
+# Netlify 本地状态（含站点 ID 等本地信息）
+joyvibe-web/.netlify/
+
+# 部署报告（本地产物）
+joyvibe-web/deploy-reports/
+
+# 后端运行期数据
+joyvibe-api/data/
+
+# 环境变量与密钥
+.env
+.env.*
+!.env.*.example
+
+# 日志与系统文件
+*.log
+.DS_Store
+Thumbs.db
